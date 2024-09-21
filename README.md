@@ -1,1 +1,1 @@
-# shader-plse-game-jam
+# plse-game-jam-2024
