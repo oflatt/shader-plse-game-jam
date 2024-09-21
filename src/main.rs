@@ -33,7 +33,7 @@ fn main() {
         ))
         .insert_resource(MovementSettings {
             sensitivity: 0.00015, // default: 0.00012
-            speed: 1.0,          // default: 12.0
+            speed: 1.0,           // default: 12.0
         })
         .add_systems(Startup, setup)
         .add_systems(Update, input_handler)
@@ -87,7 +87,7 @@ fn setup(
     // Text to describe the controls.
     commands.spawn(
         TextBundle::from_section(
-            "Controls:\nSpace: Change UVs\nX/Y/Z: Rotate\nR: Reset orientation",
+            "Controls:\nMouse to look around\nWASD: movement",
             TextStyle::default(),
         )
         .with_style(Style {
