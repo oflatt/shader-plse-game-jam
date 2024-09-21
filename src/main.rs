@@ -2,6 +2,7 @@
 //! assign a custom UV mapping for a custom texture,
 //! and how to change the UV mapping at run-time.
 
+use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
 use rand::prelude::*;
 use std::f32::consts::PI;
 
@@ -12,6 +13,8 @@ use bevy::render::{
     render_asset::RenderAssetUsages,
     render_resource::PrimitiveTopology,
 };
+
+use bevy_flycam::prelude::PlayerPlugin;
 
 // Define a "marker" component to mark the custom mesh. Marker components are often used in Bevy for
 // filtering entities in queries with With, they're usually not queried directly since they don't contain information within them.
@@ -26,7 +29,12 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             MaterialPlugin::<MountainMaterial>::default(),
+            NoCameraPlayerPlugin,
         ))
+        .insert_resource(MovementSettings {
+            sensitivity: 0.00015, // default: 0.00012
+            speed: 1.0,          // default: 12.0
+        })
         .add_systems(Startup, setup)
         .add_systems(Update, input_handler)
         .run();
@@ -46,8 +54,12 @@ fn setup(
         MaterialMeshBundle {
             mesh: cube_mesh_handle,
             transform: Transform::from_xyz(0.0, 0.5, 0.0),
-            material: materials.add(MountainMaterial {}),
-            //material: std_materials.add(StandardMaterial { ..default() }),
+            //material: materials.add(MountainMaterial {}),
+            material: std_materials.add(StandardMaterial {
+                metallic: 1.0,
+                base_color: Color::srgb(1.0, 0.5, 0.5),
+                ..default()
+            }),
             ..default()
         },
         Mountain {},
@@ -58,10 +70,13 @@ fn setup(
         Transform::from_xyz(1.8, 1.8, 1.8).looking_at(Vec3::ZERO, Vec3::Y);
 
     // Camera in 3D space.
-    commands.spawn(Camera3dBundle {
-        transform: camera_and_light_transform,
-        ..default()
-    });
+    commands.spawn((
+        Camera3dBundle {
+            transform: camera_and_light_transform,
+            ..default()
+        },
+        FlyCam,
+    ));
 
     // Light up the scene.
     commands.spawn(PointLightBundle {
@@ -225,6 +240,7 @@ fn create_mountain_mesh() -> Mesh {
     .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uv_positions)
     //.with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
     .with_inserted_indices(Indices::U32(triangles))
+    .with_computed_normals()
 }
 
 // Function that changes the UV mapping of the mesh, to apply the other texture.
