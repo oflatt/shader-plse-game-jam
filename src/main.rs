@@ -120,14 +120,39 @@ fn input_handler(
     }
 }
 
+// smoothly interpolates between some points using a special polynomial from this video's beginning:
+// https://www.youtube.com/watch?v=BFld4EBO2RE
+// interpolate_step is how many points there are between random points
+fn interpolate_random_points(
+    points: &[Vec<f32>],
+    xi: usize,
+    yi: usize,
+    interpolate_step: usize,
+) -> f32 {
+    let s_polynomial = |val: f32| 3.0 * (val * val * val) - 2.0 * val * val;
+    let rand_a = points[xi / interpolate_step][yi / interpolate_step];
+    let rand_b = points[xi / interpolate_step + 1][yi / interpolate_step];
+    let rand_c = points[xi / interpolate_step][yi / interpolate_step + 1];
+    let rand_d = points[xi / interpolate_step + 1][yi / interpolate_step + 1];
+
+    let rel_x =
+        ((xi - (interpolate_step * (xi / interpolate_step))) as f32) / (interpolate_step as f32);
+    let rel_y =
+        ((yi - (interpolate_step * (yi / interpolate_step))) as f32) / (interpolate_step as f32);
+    // interpolate smoothly between them
+    rand_a
+        + (rand_b - rand_a) * s_polynomial(rel_x)
+        + (rand_c - rand_a) * s_polynomial(rel_y)
+        + (rand_a - rand_b - rand_c + rand_d) * s_polynomial(rel_x) * s_polynomial(rel_y)
+}
+
 fn create_mountain_mesh() -> Mesh {
     let mut random_positions: Vec<Vec<f32>> = vec![];
-    let num_rand_positions_x = 10;
     let mut rng = rand::thread_rng();
-    // make one more random position to avoid index out of bounds
-    for _i in 0..(num_rand_positions_x + 1) {
+    // add a ton of random positions so we never go out of bounds
+    for _i in 0..1000 {
         let mut random_row = vec![];
-        for _j in 0..(num_rand_positions_x + 1) {
+        for _j in 0..1000 {
             random_row.push(rng.gen());
         }
         random_positions.push(random_row);
@@ -139,28 +164,20 @@ fn create_mountain_mesh() -> Mesh {
     let mut normals = vec![];
 
     let x_max = 200;
-    let interpolate_step = x_max / num_rand_positions_x;
+    let interpolate_step = 20;
     let y_max = 200;
     let last_index = (x_max * y_max) - 1;
 
-    let s_polynomial = |val: f32| 3.0 * (val * val * val) - 2.0 * val * val;
     for xi in 0..x_max {
         for yi in 0..y_max {
-            // get the random values for this quadrant
-            let rand_a = random_positions[xi / interpolate_step][yi / interpolate_step];
-            let rand_b = random_positions[xi / interpolate_step + 1][yi / interpolate_step];
-            let rand_c = random_positions[xi / interpolate_step][yi / interpolate_step + 1];
-            let rand_d = random_positions[xi / interpolate_step + 1][yi / interpolate_step + 1];
-
-            let rel_x = ((xi - (interpolate_step * (xi / interpolate_step))) as f32)
-                / (interpolate_step as f32);
-            let rel_y = ((yi - (interpolate_step * (yi / interpolate_step))) as f32)
-                / (interpolate_step as f32);
-            // interpolate smoothly between them
-            let z = rand_a
-                + (rand_b - rand_a) * s_polynomial(rel_x)
-                + (rand_c - rand_a) * s_polynomial(rel_y)
-                + (rand_a - rand_b - rand_c + rand_d) * s_polynomial(rel_x) * s_polynomial(rel_y);
+            let z = interpolate_random_points(&random_positions, xi, yi, interpolate_step)
+                + 0.5
+                    * interpolate_random_points(
+                        &random_positions,
+                        xi * 2,
+                        yi * 2,
+                        interpolate_step,
+                    );
 
             vertex_positions.push([
                 ((xi as f32) / (x_max as f32)) * 4.0 - 1.0,
