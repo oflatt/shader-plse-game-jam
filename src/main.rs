@@ -2,6 +2,9 @@
 //! assign a custom UV mapping for a custom texture,
 //! and how to change the UV mapping at run-time.
 
+use rand::prelude::*;
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderRef};
 use bevy::render::{
@@ -37,7 +40,7 @@ fn setup(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     // Create and save a handle to the mesh.
-    let cube_mesh_handle: Handle<Mesh> = meshes.add(create_cube_mesh());
+    let cube_mesh_handle: Handle<Mesh> = meshes.add(create_mountain_mesh());
 
     commands.spawn((
         MaterialMeshBundle {
@@ -117,21 +120,52 @@ fn input_handler(
     }
 }
 
-fn create_cube_mesh() -> Mesh {
+fn create_mountain_mesh() -> Mesh {
+    let mut random_positions: Vec<Vec<f32>> = vec![];
+    let num_rand_positions_x = 10;
+    let mut rng = rand::thread_rng();
+    // make one more random position to avoid index out of bounds
+    for _i in 0..(num_rand_positions_x + 1) {
+        let mut random_row = vec![];
+        for _j in 0..(num_rand_positions_x + 1) {
+            random_row.push(rng.gen());
+        }
+        random_positions.push(random_row);
+    }
+
     let mut vertex_positions = vec![];
     let mut uv_positions = vec![];
     let mut triangles = vec![];
     let mut normals = vec![];
 
-    let x_max = 100;
-    let y_max = 100;
+    let x_max = 200;
+    let interpolate_step = x_max / num_rand_positions_x;
+    let y_max = 200;
     let last_index = (x_max * y_max) - 1;
+
+    let s_polynomial = |val: f32| 3.0 * (val * val * val) - 2.0 * val * val;
     for xi in 0..x_max {
         for yi in 0..y_max {
+            // get the random values for this quadrant
+            let rand_a = random_positions[xi / interpolate_step][yi / interpolate_step];
+            let rand_b = random_positions[xi / interpolate_step + 1][yi / interpolate_step];
+            let rand_c = random_positions[xi / interpolate_step][yi / interpolate_step + 1];
+            let rand_d = random_positions[xi / interpolate_step + 1][yi / interpolate_step + 1];
+
+            let rel_x = ((xi - (interpolate_step * (xi / interpolate_step))) as f32)
+                / (interpolate_step as f32);
+            let rel_y = ((yi - (interpolate_step * (yi / interpolate_step))) as f32)
+                / (interpolate_step as f32);
+            // interpolate smoothly between them
+            let z = rand_a
+                + (rand_b - rand_a) * s_polynomial(rel_x)
+                + (rand_c - rand_a) * s_polynomial(rel_y)
+                + (rand_a - rand_b - rand_c + rand_d) * s_polynomial(rel_x) * s_polynomial(rel_y);
+
             vertex_positions.push([
-                (xi as f32) / (x_max as f32),
-                (yi as f32) / (y_max as f32),
-                (xi as f32) / (x_max as f32) + (yi as f32) / (y_max as f32),
+                ((xi as f32) / (x_max as f32)) * 4.0 - 1.0,
+                ((yi as f32) / (y_max as f32)) * 4.0 - 1.0,
+                z,
             ]);
             normals.push([0.0, 0.0, 1.0]);
 
@@ -142,8 +176,16 @@ fn create_cube_mesh() -> Mesh {
             let index_down_right = (xi + 1) * y_max + yi + 1;
 
             if index_down_right <= last_index {
-                triangles.extend(vec![index, index_down_right, index_right]);
-                triangles.extend(vec![index, index_down, index_down_right]);
+                triangles.extend(vec![
+                    index as u32,
+                    index_down_right as u32,
+                    index_right as u32,
+                ]);
+                triangles.extend(vec![
+                    index as u32,
+                    index_down as u32,
+                    index_down_right as u32,
+                ]);
             }
         }
     }
@@ -167,7 +209,7 @@ fn create_cube_mesh() -> Mesh {
     )
     // make uv the same as vertex positions XD
     .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uv_positions)
-    .with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
+    //.with_inserted_attribute(Mesh::ATTRIBUTE_NORMAL, normals)
     .with_inserted_indices(Indices::U32(triangles))
 }
 
