@@ -167,6 +167,7 @@ fn create_mountain_mesh() -> Mesh {
                 ((yi as f32) / (y_max as f32)) * 4.0 - 1.0,
                 z,
             ]);
+            uv_positions.push([(xi as f32) / (x_max as f32), (yi as f32) / (y_max as f32)]);
             normals.push([0.0, 0.0, 1.0]);
 
             // we make squares, so two triangles per index
@@ -190,10 +191,6 @@ fn create_mountain_mesh() -> Mesh {
         }
     }
 
-    for pos in vertex_positions.iter() {
-        uv_positions.push([pos[0], pos[1]])
-    }
-
     // Keep the mesh data accessible in future frames to be able to mutate it in toggle_texture.
     Mesh::new(
         PrimitiveTopology::TriangleList,
@@ -214,26 +211,7 @@ fn create_mountain_mesh() -> Mesh {
 }
 
 // Function that changes the UV mapping of the mesh, to apply the other texture.
-fn toggle_texture(mesh_to_change: &mut Mesh) {
-    // Get a mutable reference to the values of the UV attribute, so we can iterate over it.
-    let uv_attribute = mesh_to_change.attribute_mut(Mesh::ATTRIBUTE_UV_0).unwrap();
-    // The format of the UV coordinates should be Float32x2.
-    let VertexAttributeValues::Float32x2(uv_attribute) = uv_attribute else {
-        panic!("Unexpected vertex format, expected Float32x2.");
-    };
-
-    // Iterate over the UV coordinates, and change them as we want.
-    for uv_coord in uv_attribute.iter_mut() {
-        // If the UV coordinate points to the upper, "dirt+grass" part of the texture...
-        if (uv_coord[1] + 0.5) < 1.0 {
-            // ... point to the equivalent lower, "sand+water" part instead,
-            uv_coord[1] += 0.5;
-        } else {
-            // else, point back to the upper, "dirt+grass" part.
-            uv_coord[1] -= 0.5;
-        }
-    }
-}
+fn toggle_texture(mesh_to_change: &mut Mesh) {}
 
 impl Material for MountainMaterial {
     fn fragment_shader() -> ShaderRef {
