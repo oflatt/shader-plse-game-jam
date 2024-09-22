@@ -62,12 +62,12 @@ fn setup(
             MaterialMeshBundle {
                 mesh: cube_mesh_handle,
                 transform: Transform::from_xyz(0.0, 0.5, 0.0),
-                //material: materials.add(MountainMaterial {}),
-                material: std_materials.add(StandardMaterial {
+                material: materials.add(MountainMaterial {}),
+                /*material: std_materials.add(StandardMaterial {
                     metallic: 1.0,
                     base_color: Color::srgb(1.0, 0.5, 0.5),
                     ..default()
-                }),
+                }),*/
                 ..default()
             },
             Mountain {},
