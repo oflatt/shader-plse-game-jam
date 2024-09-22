@@ -2,7 +2,8 @@
 //! assign a custom UV mapping for a custom texture,
 //! and how to change the UV mapping at run-time.
 
-use bevy_flycam::{FlyCam, MovementSettings, NoCameraPlayerPlugin};
+use bevy::input::mouse::MouseMotion;
+use bevy::window::{CursorGrabMode, PrimaryWindow};
 use rand::prelude::*;
 use std::f32::consts::PI;
 
@@ -13,8 +14,6 @@ use bevy::render::{
     render_asset::RenderAssetUsages,
     render_resource::PrimitiveTopology,
 };
-
-use bevy_flycam::prelude::PlayerPlugin;
 
 // Define a "marker" component to mark the custom mesh. Marker components are often used in Bevy for
 // filtering entities in queries with With, they're usually not queried directly since they don't contain information within them.
@@ -29,12 +28,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             MaterialPlugin::<MountainMaterial>::default(),
-            NoCameraPlayerPlugin,
         ))
-        .insert_resource(MovementSettings {
-            sensitivity: 0.00015, // default: 0.00012
-            speed: 1.0,           // default: 12.0
-        })
         .add_systems(Startup, setup)
         .add_systems(Update, input_handler)
         .run();
@@ -46,6 +40,7 @@ fn setup(
     mut materials: ResMut<Assets<MountainMaterial>>,
     mut std_materials: ResMut<Assets<StandardMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
+    mut q_windows: Query<&mut Window, With<PrimaryWindow>>,
 ) {
     // Create and save a handle to the mesh.
     let cube_mesh_handle: Handle<Mesh> = meshes.add(create_mountain_mesh());
@@ -70,13 +65,10 @@ fn setup(
         Transform::from_xyz(1.8, 1.8, 1.8).looking_at(Vec3::ZERO, Vec3::Y);
 
     // Camera in 3D space.
-    commands.spawn((
-        Camera3dBundle {
-            transform: camera_and_light_transform,
-            ..default()
-        },
-        FlyCam,
-    ));
+    commands.spawn(Camera3dBundle {
+        transform: camera_and_light_transform,
+        ..default()
+    });
 
     // Light up the scene.
     commands.spawn(PointLightBundle {
@@ -97,6 +89,14 @@ fn setup(
             ..default()
         }),
     );
+
+    let mut primary_window = q_windows.single_mut();
+    // for a game that doesn't use the cursor (like a shooter):
+    // use `Locked` mode to keep the cursor in one place
+    primary_window.cursor.grab_mode = CursorGrabMode::Locked;
+
+    // also hide the cursor
+    primary_window.cursor.visible = false;
 }
 
 // System to receive input from the user,
@@ -105,33 +105,37 @@ fn input_handler(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mesh_query: Query<&Handle<Mesh>, With<Mountain>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut query: Query<&mut Transform, With<Mountain>>,
     time: Res<Time>,
+    mut evr_motion: EventReader<MouseMotion>,
+    mut camera: Query<&mut Transform, (With<Camera>, Without<Mountain>)>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
-        let mesh_handle = mesh_query.get_single().expect("Query not successful");
-        let mesh = meshes.get_mut(mesh_handle).unwrap();
-        toggle_texture(mesh);
+    let mut camera = camera.get_single_mut().unwrap();
+    for ev in evr_motion.read() {
+        // rotate the camera relative to the x and y
+        camera.rotate_local(
+            Quat::from_rotation_x(-ev.delta.y / 1000.0)
+                * Quat::from_rotation_y(-ev.delta.x / 1000.0),
+        );
     }
-    if keyboard_input.pressed(KeyCode::KeyX) {
-        for mut transform in &mut query {
-            transform.rotate_x(time.delta_seconds() / 1.2);
-        }
+
+    if keyboard_input.pressed(KeyCode::KeyW) {
+        let forward = camera.forward();
+        camera.translation += forward * 0.01;
     }
-    if keyboard_input.pressed(KeyCode::KeyY) {
-        for mut transform in &mut query {
-            transform.rotate_y(time.delta_seconds() / 1.2);
-        }
+
+    if keyboard_input.pressed(KeyCode::KeyA) {
+        let left = camera.left();
+        camera.translation += left * 0.01;
     }
-    if keyboard_input.pressed(KeyCode::KeyZ) {
-        for mut transform in &mut query {
-            transform.rotate_z(time.delta_seconds() / 1.2);
-        }
+
+    if keyboard_input.pressed(KeyCode::KeyS) {
+        let back = camera.back();
+        camera.translation += back * 0.01;
     }
-    if keyboard_input.pressed(KeyCode::KeyR) {
-        for mut transform in &mut query {
-            transform.look_to(Vec3::NEG_Z, Vec3::Y);
-        }
+
+    if keyboard_input.pressed(KeyCode::KeyD) {
+        let right = camera.right();
+        camera.translation += right*0.01;
     }
 }
 
