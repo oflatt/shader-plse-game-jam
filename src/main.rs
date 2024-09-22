@@ -235,8 +235,8 @@ fn create_mountain_mesh() -> (Collider, Mesh) {
     let y_max = 200;
     let last_index = (x_max * y_max) - 1;
 
-    for zi in 0..y_max {
-        for xi in 0..x_max {
+    for xi in 0..x_max {
+        for zi in 0..y_max {
             let y = interpolate_random_points(&random_positions, xi, zi, interpolate_step)
                 + 0.5
                     * interpolate_random_points(
@@ -246,7 +246,7 @@ fn create_mountain_mesh() -> (Collider, Mesh) {
                         interpolate_step,
                     );
 
-            collision_heights.push(-y);
+            collision_heights.push(y);
 
             vertex_positions.push([
                 ((xi as f32) / (x_max as f32)) * 4.0 - 2.0,
@@ -264,13 +264,13 @@ fn create_mountain_mesh() -> (Collider, Mesh) {
 
             if index_down_right <= last_index {
                 triangles.extend(vec![
-                    index as u32,
                     index_right as u32,
+                    index as u32,
                     index_down_right as u32,
                 ]);
                 triangles.extend(vec![
-                    index as u32,
                     index_down_right as u32,
+                    index as u32,
                     index_down as u32,
                 ]);
             }
